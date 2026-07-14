@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дашборд команды</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; padding: 20px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+h1 { font-size: 22px; color: #2d3748; }
+.btn { background: #4f46e5; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.btn:hover { background: #4338ca; }
+.btn.secondary { background: #64748b; }
+.btn.secondary:hover { background: #475569; }
+.btn.green { background: #16a34a; }
+.btn.green:hover { background: #15803d; }
+.btn.small { padding: 4px 10px; font-size: 12px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.boss-bar { background: linear-gradient(135deg,#1e293b,#334155); color:#fff; border-radius:14px; padding:16px 20px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between; }
+.boss-info { display:flex; align-items:center; gap:14px; }
+.boss-avatar { width:52px; height:52px; border-radius:50%; background:#f59e0b; display:flex; align-items:center; justify-content:center; font-size:24px; }
+.boss-name { font-size:18px; font-weight:700; }
+.boss-role { font-size:13px; opacity:.8; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.stat-card { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.stat-card .label { font-size: 13px; color: #718096; }
+.stat-card .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+.groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 1100px){ .groups { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px){ .groups { grid-template-columns: 1fr; } }
+.group { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); overflow: hidden; display: flex; flex-direction: column; }
+.group-head { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+.group-head h2 { font-size: 17px; }
+.group-head .count { font-size: 12px; opacity: .85; }
+.group-body { padding: 12px; min-height: 60px; flex: 1; display:grid; gap:10px; }
+.team-goals { padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.team-goals .tg-title { font-size: 12px; font-weight:600; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.team-goals-list { max-height:130px; overflow-y:auto; }
+.emp { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; border-left: 4px solid #94a3b8; cursor: grab; }
+.emp.lead { border-left-color: #f59e0b; background: #fffbeb; }
+.emp-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.emp-name { font-weight: 600; font-size: 15px; }
+.emp-role { font-size: 12px; color: #64748b; margin-top: 2px; }
+.badge { font-size: 10px; background: #f59e0b; color: #fff; padding: 2px 6px; border-radius: 6px; }
+.badge.sub { background: #6366f1; }
+.emp-actions { display: flex; gap: 4px; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: .5; }
+.icon-btn:hover { opacity: 1; }
+.schedule { font-size: 12px; color: #475569; margin-top: 6px; }
+.duties-title { font-size:11px; font-weight:600; color:#475569; display:flex; justify-content:space-between; margin-top:8px; margin-bottom:4px; }
+.duties-list { list-style:none; }
+.duty-item { display:flex; align-items:flex-start; gap:6px; font-size:12px; padding:3px 6px; }
+.duty-bullet { color:#6366f1; }
+.duty-text { flex:1; }
+.duty-del { cursor:pointer; color:#dc2626; font-weight:700; }
+.duties-empty { font-size:11px; color:#94a3b8; }
+.goals-header { font-size:11px; font-weight:600; color:#475569; display:flex; justify-content:space-between; margin-top:10px; margin-bottom:4px; }
+.goals-list { max-height:180px; overflow-y:auto; }
+.goal { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; }
+.goal.done { opacity:.7; background:#f0fdf4; }
+.goal-top { display:flex; justify-content:space-between; align-items:flex-start; gap:6px; }
+.goal-text { font-size:12px; font-weight:500; }
+.goal.done .goal-text { text-decoration: line-through; }
+.goal-meta { font-size:10px; color:#94a3b8; margin-top:2px; display:flex; gap:8px; }
+.goal-prio { font-size:9px; padding:1px 5px; border-radius:4px; color:#fff; }
+.prio-low { background:#94a3b8; } .prio-mid { background:#3b82f6; } .prio-high { background:#dc2626; }
+.goal-progress { height:5px; background:#e2e8f0; border-radius:3px; margin-top:5px; }
+.goal-progress-fill { height:100%; background:#4f46e5; border-radius:3px; }
+.goal.done .goal-progress-fill { background:#16a34a; }
+.goal-prog-controls { display:flex; align-items:center; gap:5px; margin-top:4px; }
+.goal-prog-controls input { flex:1; }
+.goals-empty { font-size:11px; color:#94a3b8; text-align:center; padding:8px; }
+.add-emp-btn { background: transparent; border: 2px dashed #cbd5e1; color: #64748b; padding: 8px; border-radius: 8px; cursor: pointer; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { margin-bottom: 16px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; margin-bottom: 5px; }
+.field input, .field select, .field textarea { width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+.field textarea { min-height: 80px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 10px; grid-column:1/-1; }
+</style>
+</head>
+<body>
+
+<header>
+<h1>👥 Дашборд команды</h1>
+<div class="toolbar">
+<button class="btn" onclick="openGroupModal()">➕ Группа</button>
+<button class="btn secondary" onclick="exportData()">💾 Экспорт JSON</button>
+<button class="btn secondary" onclick="triggerImport()">📂 Импорт JSON</button>
+<input type="file" id="importInput" accept="application/json" style="display:none" onchange="importData(event)">
+</div>
+</header>
+
+<div class="boss-bar" id="bossBar">
+<div class="boss-info">
+<div class="boss-avatar">👑</div>
+<div><div class="boss-name">Загрузка...</div><div class="boss-role"></div></div>
+</div>
+<button class="btn secondary small" onclick="openBossModal()">✏️</button>
+</div>
+
+<div class="stats" id="stats"></div>
+<div class="groups" id="groups"><div class="empty">Подключение к базе...</div></div>
+
+<div class="overlay" id="bossOverlay"><div class="modal"><h3>Руководитель</h3><div class="field"><label>Имя</label><input id="bossName"></div><div class="field"><label>Должность</label><input id="bossRole"></div><div class="modal-actions"><button class="btn secondary" onclick="closeBossModal()">Отмена</button><button class="btn" onclick="saveBoss()">Сохранить</button></div></div></div>
+
+<div class="overlay" id="empOverlay"><div class="modal"><h3 id="empModalTitle">Сотрудник</h3><div class="field"><label>Имя</label><input id="empName"></div><div class="field"><label>Должность</label><input id="empRole"></div><div class="field"><label>График</label><input id="empSchedule"></div><div class="field"><label>Статус</label><select id="empStatus"><option value="member">Участник</option><option value="lead">Руководитель</option><option value="sublead">Зам</option></select></div><div class="field"><label>Обязанности</label><textarea id="empDuties"></textarea></div><div class="modal-actions"><button class="btn secondary" onclick="closeEmpModal()">Отмена</button><button class="btn" onclick="saveEmp()">Сохранить</button></div></div></div>
+
+<div class="overlay" id="dutyOverlay"><div class="modal"><h3>Обязанность</h3><div class="field"><label>Текст</label><input id="dutyText"></div><div class="modal-actions"><button class="btn secondary" onclick="closeDutyModal()">Отмена</button><button class="btn" onclick="saveDuty()">Добавить</button></div></div></div>
+
+<div class="overlay" id="groupOverlay"><div class="modal"><h3 id="groupModalTitle">Группа</h3><div class="field"><label>Название</label><input id="groupName"></div><div class="field"><label>Цвет</label><input id="groupColor" type="color" value="#4f46e5"></div><div class="modal-actions"><button class="btn secondary" onclick="closeGroupModal()">Отмена</button><button class="btn" id="groupSaveBtn" onclick="saveGroup()">Создать</button></div></div></div>
+
+<div class="overlay" id="goalOverlay"><div class="modal"><h3 id="goalModalTitle">Цель</h3><div class="field"><label>Описание</label><input id="goalText"></div><div class="field"><label>Приоритет</label><select id="goalPrio"><option value="low">Низкий</option><option value="mid" selected>Средний</option><option value="high">Высокий</option></select></div><div class="field"><label>Дедлайн</label><input id="goalDeadline" type="date"></div><div class="field"><label>Прогресс</label><input id="goalProgress" type="number" min="0" max="100" value="0"></div><div class="modal-actions"><button class="btn secondary" onclick="closeGoalModal()">Отмена</button><button class="btn green" onclick="saveGoal()">Сохранить</button></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+var SB_URL = "https://emsndpczwqeqhwozlsxb.supabase.co";
+var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtc25kcGN6d3FlcWh3b3psc3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNDA4NTMsImV4cCI6MjA5OTYxNjg1M30.bWbUHFXjGqZfJ5Zp5Zmyr1iAhci08ndF_jUNxSR22EU";
+var db = supabase.createClient(SB_URL, SB_KEY);
+
+var data = { boss: { name: "", role: "" }, groups: [] };
+var editing = { groupId: null, empId: null };
+var goalTarget = { type:null, groupId:null, empId:null, goalId:null };
+var dutyTarget = { groupId:null, empId:null };
+var editingGroupId = null;
+
+function esc(s){ return (s||'').replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function prioClass(p){ return p==='high'?'prio-high':p==='low'?'prio-low':'prio-mid'; }
+function prioLabel(p){ return p==='high'?'Высокий':p==='low'?'Низкий':'Средний'; }
+function fmtDate(d){ if(!d) return ''; var dt=new Date(d); return dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}); }
+
+async function loadData(){
+  try {
+    var res = await db.from('dashboard_data').select('data').order('id',{ascending:false}).limit(1);
+    if(res.data && res.data.length){
+      data = res.data[0].data;
+      if(!data.groups) data.groups=[];
+      if(!data.boss) data.boss={name:"",role:""};
+    }
+  } catch(e){ console.error('load error', e); }
+  render();
+}
+
+async function saveDB(){
+  try { await db.from('dashboard_data').upsert({id:1, data:data}); }
+  catch(e){ console.error('save error', e); }
+}
+
+function render(){
+  renderBoss();
+  renderStats();
+  var cont = document.getElementById('groups');
+  cont.innerHTML = '';
+  if(!data.groups || !data.groups.length){
+    cont.innerHTML = '<div class="empty">Нет групп. Нажмите "➕ Группа"</div>';
+    return;
+  }
+  data.groups.forEach(function(g){
+    var el = document.createElement('div');
+    el.className = 'group';
+    el.innerHTML = groupHTML(g);
+    cont.appendChild(el);
+  });
+  attachDrag();
+}
+
+function groupHTML(g){
+  var emps = g.employees || [];
+  var goals = g.goals || [];
+  return '<div class="group-head" style="background:'+g.color+'">'+
+    '<div><h2>'+esc(g.name)+'</h2><div class="count">'+emps.length+' сотр.</div></div>'+
+    '<div><button class="icon-btn" style="color:#fff" onclick="openGoalModal(\'team\',\''+g.id+'\')">🎯</button>'+
+    '<button class="icon-btn" style="color:#fff" onclick="editGroup(\''+g.id+'\')">✏️</button>'+
+    '<button class="icon-btn" style="color:#fff" onclick="deleteGroup(\''+g.id+'\')">🗑</button></div></div>'+
+    '<div class="team-goals"><div class="tg-title">🎯 Цели команды<button class="btn green small" onclick="openGoalModal(\'team\',\''+g.id+'\')">＋</button></div>'+
+    '<div class="team-goals-list">'+(goals.length?goals.map(function(gl){return goalHTML(gl,'team',g.id,null);}).join(''):'<div class="goals-empty">Нет целей</div>')+'</div></div>'+
+    '<div class="group-body" data-group="'+g.id+'" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,\''+g.id+'\')">'+
+    (emps.length?emps.map(function(e){return empHTML(g.id,e);}).join(''):'<div class="empty">Пусто</div>')+
+    '<button class="add-emp-btn" onclick="openEmpModal(\''+g.id+'\')">＋ Сотрудник</button></div>';
+}
+
+function empHTML(gid, e){
+  var badge = e.status==='lead' ? '<span class="badge">👑</span>' : e.status==='sublead' ? '<span class="badge sub">⭐</span>' : '';
+  var duties = e.duties || [];
+  var goals = e.goals || [];
+  return '<div class="emp '+(e.status!=='member'?'lead':'')+'" draggable="true" data-emp="'+e.id+'" data-group="'+gid+'">'+
+    '<div class="emp-top"><div><div class="emp-name">'+esc(e.name)+' '+badge+'</div><div class="emp-role">'+esc(e.role||'')+'</div></div>'+
+    '<div class="emp-actions"><button class="icon-btn" onclick="openGoalModal(\'emp\',\''+gid+'\',\''+e.id+'\')">🎯</button>'+
+    '<button class="icon-btn" onclick="editEmp(\''+gid+'\',\''+e.id+'\')">✏️</button>'+
+    '<button class="icon-btn" onclick="deleteEmp(\''+gid+'\',\''+e.id+'\')">🗑</button></div></div>'+
+    '<div class="schedule">🕐 '+esc(e.schedule||'')+'</div>'+
+    '<div class="duties-title">📋 Обязанности<button class="btn small" onclick="openDutyModal(\''+gid+'\',\''+e.id+'\')">＋</button></div>'+
+    '<ul class="duties-list">'+(duties.length?duties.map(function(d,i){return '<li class="duty-item"><span class="duty-bullet">•</span><span class="duty-text">'+esc(d)+'</span><span class="duty-del" onclick="removeDuty(\''+gid+'\',\''+e.id+'\','+i+')">×</span></li>';}).join(''):'<li class="duties-empty">Нет</li>')+'</ul>'+
+    '<div class="goals-header">🎯 Цели ('+goals.length+')<button class="btn green small" onclick="openGoalModal(\'emp\',\''+gid+'\',\''+e.id+'\')">＋</button></div>'+
+    '<div class="goals-list">'+(goals.length?goals.map(function(gl){return goalHTML(gl,'emp',gid,e.id);}).join(''):'<div class="goals-empty">Нет</div>')+'</div></div>';
+}
+
+function goalHTML(gl, type, gid, eid){
+  var eidStr = eid ? "'"+eid+"'" : 'null';
+  return '<div class="goal '+(gl.done?'done':'')+'"><div class="goal-top"><div>'+
+    '<div class="goal-text">'+esc(gl.text)+'</div>'+
+    '<div class="goal-meta"><span class="goal-prio '+prioClass(gl.prio)+'">'+prioLabel(gl.prio)+'</span>'+(gl.deadline?'<span>📅 '+fmtDate(gl.deadline)+'</span>':'')+'</div></div>'+
+    '<div><button class="icon-btn" onclick="toggleGoal(\''+type+'\',\''+gid+'\','+eidStr+',\''+gl.id+'\')">'+(gl.done?'↩️':'✅')+'</button>'+
+    '<button class="icon-btn" onclick="editGoal(\''+type+'\',\''+gid+'\','+eidStr+',\''+gl.id+'\')">✏️</button>'+
+    '<button class="icon-btn" onclick="deleteGoal(\''+type+'\',\''+gid+'\','+eidStr+',\''+gl.id+'\')">🗑</button></div></div>'+
+    '<div class="goal-progress"><div class="goal-progress-fill" style="width:'+gl.progress+'%"></div></div>'+
+    '<div class="goal-prog-controls"><input type="range" min="0" max="100" value="'+gl.progress+'" oninput="setGoalProgress(\''+type+'\',\''+gid+'\','+eidStr+',\''+gl.id+'\',this.value)"><span>'+gl.progress+'%</span></div></div>';
+}
+
+function renderBoss(){
+  var b = data.boss || {};
+  var bar = document.getElementById('bossBar');
+  if(b.name){
+    bar.innerHTML = '<div class="boss-info"><div class="boss-avatar">👑</div><div><div class="boss-name">'+esc(b.name)+'</div><div class="boss-role">'+esc(b.role||'')+'</div></div></div><button class="btn secondary small" onclick="openBossModal()">✏️</button>';
+  } else {
+    bar.innerHTML = '<div class="boss-info">👑 Не назначен</div><button class="btn small" onclick="openBossModal()">➕</button>';
+  }
+}
+
+function renderStats(){
+  var all = (data.groups||[]).reduce(function(a,g){return a.concat(g.employees||[]);},[]);
+  var allGoals = (data.groups||[]).reduce(function(a,g){return a.concat(g.goals||[]);},[]).concat(all.reduce(function(a,e){return a.concat(e.goals||[]);},[]));
+  var done = allGoals.filter(function(g){return g.done;}).length;
+  document.getElementById('stats').innerHTML = '<div class="stat-card"><div class="label">Сотрудников</div><div class="value">'+all.length+'</div></div><div class="stat-card"><div class="label">Цели</div><div class="value" style="color:#16a34a">'+done+'/'+allGoals.length+'</div></div>';
+}
+
+var dragged = null;
+function attachDrag(){
+  document.querySelectorAll('.emp').forEach(function(el){
+    el.addEventListener('dragstart', function(){ dragged = {emp:el.dataset.emp, group:el.dataset.group}; });
+  });
+}
+function onDragOver(e){ e.preventDefault(); }
+function onDragLeave(e){}
+function onDrop(e, target){
+  e.preventDefault();
+  if(!dragged || dragged.group===target) return;
+  var fromG = data.groups.find(function(g){return g.id===dragged.group;});
+  var toG = data.groups.find(function(g){return g.id===target;});
+  var idx = fromG.employees.findIndex(function(x){return x.id===dragged.emp;});
+  var emp = fromG.employees.splice(idx,1)[0];
+  toG.employees.push(emp);
+  dragged=null; render(); saveDB();
+}
+
+function openBossModal(){ document.getElementById('bossName').value=data.boss.name||''; document.getElementById('bossRole').value=data.boss.role||''; document.getElementById('bossOverlay').classList.add('show'); }
+function closeBossModal(){ document.getElementById('bossOverlay').classList.remove('show'); }
+function saveBoss(){ var n=document.getElementById('bossName').value.trim(); if(!n)return alert('Имя?'); data.boss={name:n,role:document.getElementById('bossRole').value.trim()}; closeBossModal(); render(); saveDB(); }
+
+function openEmpModal(gid){ editing={groupId:gid,empId:null}; document.getElementById('empModalTitle').textContent='Новый'; ['empName','empRole','empSchedule','empDuties'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('empStatus').value='member'; document.getElementById('empOverlay').classList.add('show'); }
+function editEmp(gid,eid){ editing={groupId:gid,empId:eid}; var g=data.groups.find(function(x){return x.id===gid;}); var e=g.employees.find(function(x){return x.id===eid;}); document.getElementById('empModalTitle').textContent='Ред.'; document.getElementById('empName').value=e.name; document.getElementById('empRole').value=e.role; document.getElementById('empSchedule').value=e.schedule; document.getElementById('empStatus').value=e.status; document.getElementById('empDuties').value=(e.duties||[]).join('\n'); document.getElementById('empOverlay').classList.add('show'); }
+function saveEmp(){ var n=document.getElementById('empName').value.trim(); if(!n)return alert('Имя?'); var g=data.groups.find(function(x){return x.id===editing.groupId;}); var obj={name:n,role:document.getElementById('empRole').value.trim(),schedule:document.getElementById('empSchedule').value.trim(),status:document.getElementById('empStatus').value,duties:document.getElementById('empDuties').value.split('\n').map(function(s){return s.trim();}).filter(Boolean)}; if(editing.empId){var e=g.employees.find(function(x){return x.id===editing.empId;});Object.assign(e,obj);}else{obj.id='e'+Date.now();obj.goals=[];g.employees.push(obj);} closeEmpModal(); render(); saveDB(); }
+function closeEmpModal(){ document.getElementById('empOverlay').classList.remove('show'); }
+function deleteEmp(gid,eid){ if(!confirm('Удалить?'))return; var g=data.groups.find(function(x){return x.id===gid;}); g.employees=g.employees.filter(function(x){return x.id!==eid;}); render(); saveDB(); }
+
+function openDutyModal(gid,eid){ dutyTarget={groupId:gid,empId:eid}; document.getElementById('dutyText').value=''; document.getElementById('dutyOverlay').classList.add('show'); }
+function closeDutyModal(){ document.getElementById('dutyOverlay').classList.remove('show'); }
+function saveDuty(){ var t=document.getElementById('dutyText').value.trim(); if(!t)return; var g=data.groups.find(function(x){return x.id===dutyTarget.groupId;}); var e=g.employees.find(function(x){return x.id===dutyTarget.empId;}); if(!e.duties)e.duties=[]; e.duties.push(t); closeDutyModal(); render(); saveDB(); }
+function removeDuty(gid,eid,i){ var g=data.groups.find(function(x){return x.id===gid;}); var e=g.employees.find(function(x){return x.id===eid;}); e.duties.splice(i,1); render(); saveDB(); }
+
+function getGoalArr(type,gid,eid){ var g=data.groups.find(function(x){return x.id===gid;}); if(!g)return[]; if(type==='team')return g.goals||[]; var e=g.employees.find(function(x){return x.id===eid;}); return e?(e.goals||[]):[]; }
+function openGoalModal(type,gid,eid){ goalTarget={type:type,groupId:gid,empId:eid||null,goalId:null}; document.getElementById('goalModalTitle').textContent='Цель'; document.getElementById('goalText').value=''; document.getElementById('goalPrio').value='mid'; document.getElementById('goalDeadline').value=''; document.getElementById('goalProgress').value=0; document.getElementById('goalOverlay').classList.add('show'); }
+function editGoal(type,gid,eid,glid){ goalTarget={type:type,groupId:gid,empId:eid,goalId:glid}; var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); document.getElementById('goalModalTitle').textContent='Ред.цель'; document.getElementById('goalText').value=gl.text; document.getElementById('goalPrio').value=gl.prio; document.getElementById('goalDeadline').value=gl.deadline||''; document.getElementById('goalProgress').value=gl.progress; document.getElementById('goalOverlay').classList.add('show'); }
+function saveGoal(){ var t=document.getElementById('goalText').value.trim(); if(!t)return alert('Текст?'); var arr=getGoalArr(goalTarget.type,goalTarget.groupId,goalTarget.empId); var p=parseInt(document.getElementById('goalProgress').value)||0; var obj={text:t,prio:document.getElementById('goalPrio').value,deadline:document.getElementById('goalDeadline').value,progress:p,done:p>=100}; if(goalTarget.goalId){var gl=arr.find(function(x){return x.id===goalTarget.goalId;});Object.assign(gl,obj);}else{obj.id='gl'+Date.now();arr.push(obj);} closeGoalModal(); render(); saveDB(); }
+function closeGoalModal(){ document.getElementById('goalOverlay').classList.remove('show'); }
+function deleteGoal(type,gid,eid,glid){ if(!confirm('Удалить?'))return; var arr=getGoalArr(type,gid,eid); var i=arr.findIndex(function(x){return x.id===glid;}); arr.splice(i,1); render(); saveDB(); }
+function toggleGoal(type,gid,eid,glid){ var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); gl.done=!gl.done; if(gl.done)gl.progress=100; render(); saveDB(); }
+function setGoalProgress(type,gid,eid,glid,val){ var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); gl.progress=parseInt(val); gl.done=gl.progress>=100; render(); saveDB(); }
+
+function openGroupModal(){ editingGroupId=null; document.getElementById('groupModalTitle').textContent='Новая группа'; document.getElementById('groupSaveBtn').textContent='Создать'; document.getElementById('groupName').value=''; document.getElementById('groupColor').value='#4f46e5'; document.getElementById('groupOverlay').classList.add('show'); }
+function editGroup(id){ var g=data.groups.find(function(x){return x.id===id;}); editingGroupId=id; document.getElementById('groupModalTitle').textContent='Ред.группу'; document.getElementById('groupSaveBtn').textContent='Сохранить'; document.getElementById('groupName').value=g.name; document.getElementById('groupColor').value=g.color; document.getElementById('groupOverlay').classList.add('show'); }
+function closeGroupModal(){ document.getElementById('groupOverlay').classList.remove('show'); }
+function saveGroup(){ var n=document.getElementById('groupName').value.trim(); if(!n)return alert('Название?'); var c=document.getElementById('groupColor').value; if(editingGroupId){var g=data.groups.find(function(x){return x.id===editingGroupId;});g.name=n;g.color=c;}else{data.groups.push({id:'g'+Date.now(),name:n,color:c,goals:[],employees:[]});} closeGroupModal(); render(); saveDB(); }
+function deleteGroup(id){ if(!confirm('Удалить?'))return; data.groups=data.groups.filter(function(g){return g.id!==id;}); render(); saveDB(); }
+
+function exportData(){ var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='data.json'; a.click(); }
+function triggerImport(){ document.getElementById('importInput').click(); }
+function importData(ev){ var f=ev.target.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(e){ try{ var p=JSON.parse(e.target.result); data=p; render(); saveDB(); alert('OK'); }catch(err){alert('Ошибка');} }; r.readAsText(f); }
+
+loadData();
+</script>
+</body>
+</html>
