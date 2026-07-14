@@ -130,7 +130,6 @@
   <div class="empty">Подключение к базе...</div>
 </div>
 
-<!-- Модалки -->
 <div class="overlay" id="bossOverlay"><div class="modal"><h3>Руководитель</h3><div class="field"><label>Имя</label><input id="bossName"></div><div class="field"><label>Должность</label><input id="bossRole"></div><div class="modal-actions"><button class="btn secondary" onclick="closeBossModal()">Отмена</button><button class="btn" onclick="saveBoss()">Сохранить</button></div></div></div>
 <div class="overlay" id="empOverlay"><div class="modal"><h3 id="empModalTitle">Сотрудник</h3><div class="field"><label>Имя</label><input id="empName"></div><div class="field"><label>Должность</label><input id="empRole"></div><div class="field"><label>График</label><input id="empSchedule"></div><div class="field"><label>Статус</label><select id="empStatus"><option value="member">Участник</option><option value="lead">Руководитель</option><option value="sublead">Зам</option></select></div><div class="field"><label>Обязанности</label><textarea id="empDuties"></textarea></div><div class="modal-actions"><button class="btn secondary" onclick="closeEmpModal()">Отмена</button><button class="btn" onclick="saveEmp()">Сохранить</button></div></div></div>
 <div class="overlay" id="dutyOverlay"><div class="modal"><h3>Обязанность</h3><div class="field"><label>Текст</label><input id="dutyText"></div><div class="modal-actions"><button class="btn secondary" onclick="closeDutyModal()">Отмена</button><button class="btn" onclick="saveDuty()">Добавить</button></div></div></div>
@@ -139,20 +138,16 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// 1. ИНИЦИАЛИЗАЦИЯ (ЕДИНСТВЕННОЕ МЕСТО)
 const SUPABASE_URL = 'https://emsndpczwqeqhwozlsxb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtc25kcGN6d3FlcWh3b3psc3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNDA4NTMsImV4cCI6MjA5OTYxNjg1M30.bWbUHFXjGqZfJ5Zp5Zmyr1iAhci08ndF_jUNxSR22EU';
 
 let supabase;
 try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("Supabase подключен успешно");
 } catch (e) {
     console.error("Ошибка подключения Supabase:", e);
-    alert("Ошибка подключения к базе данных. Проверьте консоль.");
 }
 
-// 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 let data = { boss: { name: "", role: "" }, groups: [] };
 let editing = { groupId: null, empId: null };
 let goalTarget = { type:null, groupId:null, empId:null, goalId:null };
@@ -160,9 +155,8 @@ let dutyTarget = { groupId:null, empId:null };
 let editingGroupId = null;
 let isSaving = false;
 
-// 3. ФУНКЦИИ БАЗЫ ДАННЫХ
 async function loadData() {
-    if (!supabase) return;
+    if (!supabase) { render(); return; }
     try {
         const { data: rows, error } = await supabase.from('dashboard_data').select('data').order('updated_at', { ascending: false }).limit(1);
         if (error) throw error;
@@ -173,7 +167,6 @@ async function loadData() {
         }
     } catch (err) {
         console.error("Ошибка загрузки:", err);
-        // Если ошибка, оставляем пустые данные, но интерфейс работает
     }
     render();
 }
@@ -189,14 +182,12 @@ async function saveDataToDB() {
     isSaving = false;
 }
 
-// 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 function escapeHtml(s) { return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function prioClass(p) { return p==='high'?'prio-high':p==='low'?'prio-low':'prio-mid'; }
 function prioLabel(p) { return p==='high'?'Высокий':p==='low'?'Низкий':'Средний'; }
 function fmtDate(d) { if(!d) return ''; const dt=new Date(d); return dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}); }
 function isOverdue(g) { return g.deadline && !g.done && new Date(g.deadline) < new Date().setHours(0,0,0,0); }
 
-// 5. ОТРИСОВКА
 function render() {
     renderBoss();
     renderStats();
@@ -276,7 +267,6 @@ function goalCard(gl, type, groupId, empId) {
     <div class="goal-prog-controls"><input type="range" min="0" max="100" value="${gl.progress}" oninput="setGoalProgress('${type}','${groupId}',${eid},'${gl.id}',this.value)"><span style="font-size:10px">${gl.progress}%</span></div></div>`;
 }
 
-// 6. DRAG AND DROP
 let dragged = null;
 function attachDrag() {
     document.querySelectorAll('.emp').forEach(el => {
@@ -301,7 +291,6 @@ function onDrop(e, targetGroup){
     saveDataToDB();
 }
 
-// 7. CRUD ФУНКЦИИ (СОКРАЩЕННЫЕ ДЛЯ НАДЕЖНОСТИ)
 function openBossModal(){ document.getElementById('bossName').value = data.boss?.name||''; document.getElementById('bossRole').value = data.boss?.role||''; document.getElementById('bossOverlay').classList.add('show'); }
 function closeBossModal(){ document.getElementById('bossOverlay').classList.remove('show'); }
 function saveBoss(){ const name = document.getElementById('bossName').value.trim(); if(!name) return alert('Имя обязательно'); data.boss = { name, role: document.getElementById('bossRole').value.trim() }; closeBossModal(); render(); saveDataToDB(); }
@@ -336,7 +325,6 @@ function exportData(){ const blob = new Blob([JSON.stringify(data,null,2)],{type
 function triggerImport(){ document.getElementById('importInput').click(); }
 function importData(event){ const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const parsed = JSON.parse(e.target.result); if(!parsed.groups) return alert('Ошибка формата'); data = parsed; render(); saveDataToDB(); alert('Загружено!'); } catch(err){ alert('Ошибка файла'); } }; reader.readAsText(file); event.target.value = ''; }
 
-// ЗАПУСК
 loadData();
 </script>
 </body>
