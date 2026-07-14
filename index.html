@@ -142,7 +142,7 @@
 <!-- СКРИПТ С БАЗОЙ ДАННЫХ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ---------- НАСТРОЙКИ БАЗЫ ДАННЫХ ---------- */
+/* ---------- НАСТРОЙКИ БАЗЫ ДАННЫХ (ЕДИНСТВЕННОЕ МЕСТО ОБЪЯВЛЕНИЯ) ---------- */
 const SUPABASE_URL = 'https://emsndpczwqeqhwozlsxb.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtc25kcGN6d3FlcWh3b3psc3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNDA4NTMsImV4cCI6MjA5OTYxNjg1M30.bWbUHFXjGqZfJ5Zp5Zmyr1iAhci08ndF_jUNxSR22EU'; 
 
@@ -317,7 +317,7 @@ function deleteGroup(id){ if(!confirm('Удалить группу?')) return; d
 function exportData(){ const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'data.json'; a.click(); }
 function triggerImport(){ document.getElementById('importInput').click(); }
 function importData(event){ const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const parsed = JSON.parse(e.target.result); if(!parsed.groups) return alert('Ошибка формата'); data = parsed; render(); saveDataToDB(); alert('Загружено!'); } catch(err){ alert('Ошибка'); } }; reader.readAsText(file); event.target.value = ''; }
-function exportHTML(){ const doc = document.documentElement.cloneNode(true); doc.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); const scripts = doc.querySelectorAll('script'); scripts.forEach(sc => { if (sc.textContent.includes('const SUPABASE_URL')) { /* Keep keys as is */ } }); const html = '<!DOCTYPE html>\n' + doc.outerHTML; const blob = new Blob([html], { type:'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dashboard-${new Date().toISOString().slice(0,10)}.html`; a.click(); }
+function exportHTML(){ const doc = document.documentElement.cloneNode(true); doc.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); const html = '<!DOCTYPE html>\n' + doc.outerHTML; const blob = new Blob([html], { type:'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dashboard-${new Date().toISOString().slice(0,10)}.html`; a.click(); }
 
 loadData();
 </script>
