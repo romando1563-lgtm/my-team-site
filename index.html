@@ -6,7 +6,7 @@
 <title>Дашборд команды</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; padding: 20px; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; padding: 20px; padding-top: 70px; }
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
 h1 { font-size: 22px; color: #2d3748; }
 .btn { background: #4f46e5; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
@@ -91,9 +91,31 @@ h1 { font-size: 22px; color: #2d3748; }
 .field textarea { min-height: 80px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 10px; grid-column:1/-1; }
+
+#toastMsg { position:fixed; bottom:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:600; color:#fff; z-index:2000; box-shadow:0 4px 12px rgba(0,0,0,.25); opacity:0; transition:opacity .3s; pointer-events:none; }
+
+/* Плавающая панель сохранения сверху */
+#saveBar { position:fixed; top:0; left:0; right:0; background:#fff; border-bottom:2px solid #e2e8f0; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+#saveStatus { font-size:13px; color:#64748b; display:flex; align-items:center; gap:8px; }
+#saveStatus.unsaved { color:#dc2626; font-weight:600; }
+#saveStatus .dot { width:8px; height:8px; border-radius:50%; background:#16a34a; }
+#saveStatus.unsaved .dot { background:#dc2626; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+#saveNowBtn { background:#16a34a; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
+#saveNowBtn:hover { background:#15803d; }
+#saveNowBtn:disabled { background:#94a3b8; cursor:not-allowed; }
 </style>
 </head>
 <body>
+
+<!-- Панель сохранения -->
+<div id="saveBar">
+  <div id="saveStatus"><span class="dot"></span><span id="saveStatusText">Все изменения сохранены</span></div>
+  <button id="saveNowBtn" onclick="saveDB()">💾 Сохранить изменения</button>
+</div>
+
+<!-- Toast -->
+<div id="toastMsg"></div>
 
 <!-- Экран входа -->
 <div id="authScreen" style="display:none; position:fixed; inset:0; background:#f0f2f5; z-index:999; align-items:center; justify-content:center;">
@@ -138,11 +160,47 @@ h1 { font-size: 22px; color: #2d3748; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 var SB_URL = "https://emsndpczwqeqhwozlsxb.supabase.co";
-var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtc25kcGN6d3FlcWh3b3psc3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNDA4NTMsImV4cCI6MjA5OTYxNjg1M30.bWbUHFXjGqZfJ5Zp5Zmyr1iAhci08ndF_jUNxSR22EU";
+var SB_KEY = "ВСТАВЬТЕ_СЮДА_ВАШ_НАСТОЯЩИЙ_КЛЮЧ";
 var db = supabase.createClient(SB_URL, SB_KEY);
 
 var PASS = "Ds7@k2";
+var hasUnsavedChanges = false;
+var lastKnownUpdatedAt = null;
 
+/* ============ TOAST ============ */
+function showToast(text, color){
+  var el = document.getElementById('toastMsg');
+  el.textContent = text;
+  el.style.background = color;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.style.opacity = '0'; }, 3000);
+}
+
+/* ============ СТАТУС СОХРАНЕНИЯ ============ */
+function markUnsaved(){
+  hasUnsavedChanges = true;
+  var status = document.getElementById('saveStatus');
+  status.classList.add('unsaved');
+  document.getElementById('saveStatusText').textContent = 'Есть несохранённые изменения';
+  document.getElementById('saveNowBtn').disabled = false;
+}
+
+function markSaved(){
+  hasUnsavedChanges = false;
+  var status = document.getElementById('saveStatus');
+  status.classList.remove('unsaved');
+  document.getElementById('saveStatusText').textContent = 'Все изменения сохранены';
+}
+
+window.addEventListener('beforeunload', function(e){
+  if(hasUnsavedChanges){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+/* ============ АВТОРИЗАЦИЯ ============ */
 function checkPassword(){
   if(localStorage.getItem('dash_auth') === 'ok'){
     document.getElementById('authScreen').style.display = 'none';
@@ -167,6 +225,7 @@ function submitPassword(){
 }
 
 function logout(){
+  if(hasUnsavedChanges && !confirm('Есть несохранённые изменения. Выйти без сохранения?')) return;
   localStorage.removeItem('dash_auth');
   location.reload();
 }
@@ -177,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 
+/* ============ ДАННЫЕ ============ */
 var data = { boss: { name: "", role: "" }, groups: [] };
 var editing = { groupId: null, empId: null };
 var goalTarget = { type:null, groupId:null, empId:null, goalId:null };
@@ -190,19 +250,56 @@ function fmtDate(d){ if(!d) return ''; var dt=new Date(d); return dt.toLocaleDat
 
 async function loadData(){
   try {
-    var res = await db.from('dashboard_data').select('data').order('id',{ascending:false}).limit(1);
+    var res = await db.from('dashboard_data').select('data, updated_at').eq('id', 1).limit(1);
+    if(res.error) throw res.error;
     if(res.data && res.data.length){
       data = res.data[0].data;
+      lastKnownUpdatedAt = res.data[0].updated_at;
       if(!data.groups) data.groups=[];
       if(!data.boss) data.boss={name:"",role:""};
     }
-  } catch(e){ console.error('load error', e); }
+  } catch(e){
+    console.error('load error', e);
+    showToast('❌ Ошибка загрузки данных', '#dc2626');
+  }
   render();
 }
 
 async function saveDB(){
-  try { await db.from('dashboard_data').upsert({id:1, data:data}); }
-  catch(e){ console.error('save error', e); }
+  var btn = document.getElementById('saveNowBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Сохранение...';
+
+  try {
+    // проверяем конфликт
+    var check = await db.from('dashboard_data').select('updated_at').eq('id',1).limit(1);
+    if(check.data && check.data.length){
+      var currentUpdatedAt = check.data[0].updated_at;
+      if(lastKnownUpdatedAt && currentUpdatedAt && currentUpdatedAt !== lastKnownUpdatedAt){
+        var ok = confirm('⚠️ Кто-то другой уже сохранил изменения после вашей последней загрузки.\n\nЕсли вы продолжите — ВАША версия перезапишет ЕГО изменения.\n\nНажмите ОК, чтобы всё равно сохранить СВОЮ версию.\nНажмите Отмена, чтобы обновить страницу и увидеть чужие изменения (ваши правки будут потеряны, но можно скачать их JSON перед этим).');
+        if(!ok){
+          btn.disabled = false;
+          btn.textContent = '💾 Сохранить изменения';
+          return;
+        }
+      }
+    }
+
+    var res = await db.from('dashboard_data').upsert({id:1, data:data});
+    if(res.error) throw res.error;
+
+    var fresh = await db.from('dashboard_data').select('updated_at').eq('id',1).limit(1);
+    if(fresh.data && fresh.data.length) lastKnownUpdatedAt = fresh.data[0].updated_at;
+
+    markSaved();
+    showToast('✅ Сохранено', '#16a34a');
+  } catch(e){
+    console.error('save error', e);
+    showToast('❌ ОШИБКА СОХРАНЕНИЯ! Проверьте интернет', '#dc2626');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '💾 Сохранить изменения';
 }
 
 function render(){
@@ -289,7 +386,7 @@ function moveEmp(gid, eid, dir){
   var j = i + dir;
   if(j<0 || j>=g.employees.length) return;
   var tmp = g.employees[i]; g.employees[i] = g.employees[j]; g.employees[j] = tmp;
-  render(); saveDB();
+  render(); markUnsaved();
 }
 
 function renderBoss(){
@@ -325,42 +422,42 @@ function onDrop(e, target){
   var idx = fromG.employees.findIndex(function(x){return x.id===dragged.emp;});
   var emp = fromG.employees.splice(idx,1)[0];
   toG.employees.push(emp);
-  dragged=null; render(); saveDB();
+  dragged=null; render(); markUnsaved();
 }
 
 function openBossModal(){ document.getElementById('bossName').value=data.boss.name||''; document.getElementById('bossRole').value=data.boss.role||''; document.getElementById('bossOverlay').classList.add('show'); }
 function closeBossModal(){ document.getElementById('bossOverlay').classList.remove('show'); }
-function saveBoss(){ var n=document.getElementById('bossName').value.trim(); if(!n)return alert('Имя?'); data.boss={name:n,role:document.getElementById('bossRole').value.trim()}; closeBossModal(); render(); saveDB(); }
+function saveBoss(){ var n=document.getElementById('bossName').value.trim(); if(!n)return alert('Имя?'); data.boss={name:n,role:document.getElementById('bossRole').value.trim()}; closeBossModal(); render(); markUnsaved(); }
 
 function openEmpModal(gid){ editing={groupId:gid,empId:null}; document.getElementById('empModalTitle').textContent='Новый'; ['empName','empRole','empSchedule','empDuties'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('empStatus').value='member'; document.getElementById('empOverlay').classList.add('show'); }
 function editEmp(gid,eid){ editing={groupId:gid,empId:eid}; var g=data.groups.find(function(x){return x.id===gid;}); var e=g.employees.find(function(x){return x.id===eid;}); document.getElementById('empModalTitle').textContent='Ред.'; document.getElementById('empName').value=e.name; document.getElementById('empRole').value=e.role; document.getElementById('empSchedule').value=e.schedule; document.getElementById('empStatus').value=e.status; document.getElementById('empDuties').value=(e.duties||[]).join('\n'); document.getElementById('empOverlay').classList.add('show'); }
-function saveEmp(){ var n=document.getElementById('empName').value.trim(); if(!n)return alert('Имя?'); var g=data.groups.find(function(x){return x.id===editing.groupId;}); var obj={name:n,role:document.getElementById('empRole').value.trim(),schedule:document.getElementById('empSchedule').value.trim(),status:document.getElementById('empStatus').value,duties:document.getElementById('empDuties').value.split('\n').map(function(s){return s.trim();}).filter(Boolean)}; if(editing.empId){var e=g.employees.find(function(x){return x.id===editing.empId;});Object.assign(e,obj);}else{obj.id='e'+Date.now();obj.goals=[];g.employees.push(obj);} closeEmpModal(); render(); saveDB(); }
+function saveEmp(){ var n=document.getElementById('empName').value.trim(); if(!n)return alert('Имя?'); var g=data.groups.find(function(x){return x.id===editing.groupId;}); var obj={name:n,role:document.getElementById('empRole').value.trim(),schedule:document.getElementById('empSchedule').value.trim(),status:document.getElementById('empStatus').value,duties:document.getElementById('empDuties').value.split('\n').map(function(s){return s.trim();}).filter(Boolean)}; if(editing.empId){var e=g.employees.find(function(x){return x.id===editing.empId;});Object.assign(e,obj);}else{obj.id='e'+Date.now();obj.goals=[];g.employees.push(obj);} closeEmpModal(); render(); markUnsaved(); }
 function closeEmpModal(){ document.getElementById('empOverlay').classList.remove('show'); }
-function deleteEmp(gid,eid){ if(!confirm('Удалить?'))return; var g=data.groups.find(function(x){return x.id===gid;}); g.employees=g.employees.filter(function(x){return x.id!==eid;}); render(); saveDB(); }
+function deleteEmp(gid,eid){ if(!confirm('Удалить?'))return; var g=data.groups.find(function(x){return x.id===gid;}); g.employees=g.employees.filter(function(x){return x.id!==eid;}); render(); markUnsaved(); }
 
 function openDutyModal(gid,eid){ dutyTarget={groupId:gid,empId:eid}; document.getElementById('dutyText').value=''; document.getElementById('dutyOverlay').classList.add('show'); }
 function closeDutyModal(){ document.getElementById('dutyOverlay').classList.remove('show'); }
-function saveDuty(){ var t=document.getElementById('dutyText').value.trim(); if(!t)return; var g=data.groups.find(function(x){return x.id===dutyTarget.groupId;}); var e=g.employees.find(function(x){return x.id===dutyTarget.empId;}); if(!e.duties)e.duties=[]; e.duties.push(t); closeDutyModal(); render(); saveDB(); }
-function removeDuty(gid,eid,i){ var g=data.groups.find(function(x){return x.id===gid;}); var e=g.employees.find(function(x){return x.id===eid;}); e.duties.splice(i,1); render(); saveDB(); }
+function saveDuty(){ var t=document.getElementById('dutyText').value.trim(); if(!t)return; var g=data.groups.find(function(x){return x.id===dutyTarget.groupId;}); var e=g.employees.find(function(x){return x.id===dutyTarget.empId;}); if(!e.duties)e.duties=[]; e.duties.push(t); closeDutyModal(); render(); markUnsaved(); }
+function removeDuty(gid,eid,i){ var g=data.groups.find(function(x){return x.id===gid;}); var e=g.employees.find(function(x){return x.id===eid;}); e.duties.splice(i,1); render(); markUnsaved(); }
 
 function getGoalArr(type,gid,eid){ var g=data.groups.find(function(x){return x.id===gid;}); if(!g)return[]; if(type==='team')return g.goals||[]; var e=g.employees.find(function(x){return x.id===eid;}); return e?(e.goals||[]):[]; }
 function openGoalModal(type,gid,eid){ goalTarget={type:type,groupId:gid,empId:eid||null,goalId:null}; document.getElementById('goalModalTitle').textContent='Цель'; document.getElementById('goalText').value=''; document.getElementById('goalPrio').value='mid'; document.getElementById('goalDeadline').value=''; document.getElementById('goalProgress').value=0; document.getElementById('goalOverlay').classList.add('show'); }
 function editGoal(type,gid,eid,glid){ goalTarget={type:type,groupId:gid,empId:eid,goalId:glid}; var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); document.getElementById('goalModalTitle').textContent='Ред.цель'; document.getElementById('goalText').value=gl.text; document.getElementById('goalPrio').value=gl.prio; document.getElementById('goalDeadline').value=gl.deadline||''; document.getElementById('goalProgress').value=gl.progress; document.getElementById('goalOverlay').classList.add('show'); }
-function saveGoal(){ var t=document.getElementById('goalText').value.trim(); if(!t)return alert('Текст?'); var arr=getGoalArr(goalTarget.type,goalTarget.groupId,goalTarget.empId); var p=parseInt(document.getElementById('goalProgress').value)||0; var obj={text:t,prio:document.getElementById('goalPrio').value,deadline:document.getElementById('goalDeadline').value,progress:p,done:p>=100}; if(goalTarget.goalId){var gl=arr.find(function(x){return x.id===goalTarget.goalId;});Object.assign(gl,obj);}else{obj.id='gl'+Date.now();arr.push(obj);} closeGoalModal(); render(); saveDB(); }
+function saveGoal(){ var t=document.getElementById('goalText').value.trim(); if(!t)return alert('Текст?'); var arr=getGoalArr(goalTarget.type,goalTarget.groupId,goalTarget.empId); var p=parseInt(document.getElementById('goalProgress').value)||0; var obj={text:t,prio:document.getElementById('goalPrio').value,deadline:document.getElementById('goalDeadline').value,progress:p,done:p>=100}; if(goalTarget.goalId){var gl=arr.find(function(x){return x.id===goalTarget.goalId;});Object.assign(gl,obj);}else{obj.id='gl'+Date.now();arr.push(obj);} closeGoalModal(); render(); markUnsaved(); }
 function closeGoalModal(){ document.getElementById('goalOverlay').classList.remove('show'); }
-function deleteGoal(type,gid,eid,glid){ if(!confirm('Удалить?'))return; var arr=getGoalArr(type,gid,eid); var i=arr.findIndex(function(x){return x.id===glid;}); arr.splice(i,1); render(); saveDB(); }
-function toggleGoal(type,gid,eid,glid){ var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); gl.done=!gl.done; if(gl.done)gl.progress=100; render(); saveDB(); }
-function setGoalProgress(type,gid,eid,glid,val){ var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); gl.progress=parseInt(val); gl.done=gl.progress>=100; render(); saveDB(); }
+function deleteGoal(type,gid,eid,glid){ if(!confirm('Удалить?'))return; var arr=getGoalArr(type,gid,eid); var i=arr.findIndex(function(x){return x.id===glid;}); arr.splice(i,1); render(); markUnsaved(); }
+function toggleGoal(type,gid,eid,glid){ var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); gl.done=!gl.done; if(gl.done)gl.progress=100; render(); markUnsaved(); }
+function setGoalProgress(type,gid,eid,glid,val){ var arr=getGoalArr(type,gid,eid); var gl=arr.find(function(x){return x.id===glid;}); gl.progress=parseInt(val); gl.done=gl.progress>=100; render(); markUnsaved(); }
 
 function openGroupModal(){ editingGroupId=null; document.getElementById('groupModalTitle').textContent='Новая группа'; document.getElementById('groupSaveBtn').textContent='Создать'; document.getElementById('groupName').value=''; document.getElementById('groupColor').value='#4f46e5'; document.getElementById('groupOverlay').classList.add('show'); }
 function editGroup(id){ var g=data.groups.find(function(x){return x.id===id;}); editingGroupId=id; document.getElementById('groupModalTitle').textContent='Ред.группу'; document.getElementById('groupSaveBtn').textContent='Сохранить'; document.getElementById('groupName').value=g.name; document.getElementById('groupColor').value=g.color; document.getElementById('groupOverlay').classList.add('show'); }
 function closeGroupModal(){ document.getElementById('groupOverlay').classList.remove('show'); }
-function saveGroup(){ var n=document.getElementById('groupName').value.trim(); if(!n)return alert('Название?'); var c=document.getElementById('groupColor').value; if(editingGroupId){var g=data.groups.find(function(x){return x.id===editingGroupId;});g.name=n;g.color=c;}else{data.groups.push({id:'g'+Date.now(),name:n,color:c,goals:[],employees:[]});} closeGroupModal(); render(); saveDB(); }
-function deleteGroup(id){ if(!confirm('Удалить?'))return; data.groups=data.groups.filter(function(g){return g.id!==id;}); render(); saveDB(); }
+function saveGroup(){ var n=document.getElementById('groupName').value.trim(); if(!n)return alert('Название?'); var c=document.getElementById('groupColor').value; if(editingGroupId){var g=data.groups.find(function(x){return x.id===editingGroupId;});g.name=n;g.color=c;}else{data.groups.push({id:'g'+Date.now(),name:n,color:c,goals:[],employees:[]});} closeGroupModal(); render(); markUnsaved(); }
+function deleteGroup(id){ if(!confirm('Удалить?'))return; data.groups=data.groups.filter(function(g){return g.id!==id;}); render(); markUnsaved(); }
 
-function exportData(){ var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='data.json'; a.click(); }
+function exportData(){ var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='data-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); }
 function triggerImport(){ document.getElementById('importInput').click(); }
-function importData(ev){ var f=ev.target.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(e){ try{ var p=JSON.parse(e.target.result); data=p; render(); saveDB(); alert('OK'); }catch(err){alert('Ошибка');} }; r.readAsText(f); }
+function importData(ev){ var f=ev.target.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(e){ try{ var p=JSON.parse(e.target.result); data=p; render(); markUnsaved(); alert('Данные загружены. Не забудьте нажать "Сохранить изменения"!'); }catch(err){alert('Ошибка');} }; r.readAsText(f); }
 
 checkPassword();
 </script>
