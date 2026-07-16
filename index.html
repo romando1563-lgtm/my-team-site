@@ -79,7 +79,7 @@ h1 { font-size: 22px; color: #2d3748; }
 .goal.done .goal-prog-controls input[type=range]::-moz-range-thumb { background:#16a34a; }
 .goal-prog-controls .pct { font-size:10px; color:#64748b; min-width:32px; text-align:right; }
 .goals-empty { font-size:11px; color:#94a3b8; text-align:center; padding:8px; }
-.add-emp-btn { background: transparent; border: 2px dashed #cbd5e1; color: #64748b; padding: 8px; border-radius: 8px; cursor: pointer; height: 44px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.add-emp-btn { background: transparent; border: 2px dashed #cbd5e1; color: #64748b; padding: 8px; border-radius: 8px; cursor: pointer; height: 44px; display:flex; align-items:center; justify-content:center; }
 .add-emp-btn:hover { border-color:#4f46e5; color:#4f46e5; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
 .overlay.show { display: flex; }
@@ -95,12 +95,25 @@ h1 { font-size: 22px; color: #2d3748; }
 </head>
 <body>
 
+<!-- Экран входа -->
+<div id="authScreen" style="display:none; position:fixed; inset:0; background:#f0f2f5; z-index:999; align-items:center; justify-content:center;">
+  <div style="background:#fff; padding:40px; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.12); text-align:center; width:320px;">
+    <div style="font-size:52px; margin-bottom:12px;">🔒</div>
+    <h2 style="margin-bottom:6px; color:#1e293b;">Дашборд команды</h2>
+    <p style="font-size:14px; color:#64748b; margin-bottom:22px;">Введите пароль для входа</p>
+    <input id="passwordInput" type="password" placeholder="Пароль" style="width:100%; padding:11px; border:1px solid #cbd5e1; border-radius:8px; font-size:15px; margin-bottom:10px; outline:none; text-align:center; letter-spacing:3px;">
+    <div id="passwordError" style="display:none; color:#dc2626; font-size:13px; margin-bottom:10px;">❌ Неверный пароль</div>
+    <button onclick="submitPassword()" style="width:100%; background:#4f46e5; color:#fff; border:none; padding:12px; border-radius:8px; font-size:15px; cursor:pointer; font-weight:600;">Войти</button>
+  </div>
+</div>
+
 <header>
 <h1>📊 Дашборд команды</h1>
 <div class="toolbar">
 <button class="btn" onclick="openGroupModal()">➕ Группа</button>
 <button class="btn secondary" onclick="exportData()">📤 Экспорт JSON</button>
 <button class="btn secondary" onclick="triggerImport()">📥 Импорт JSON</button>
+<button class="btn secondary" onclick="logout()">🚪 Выйти</button>
 <input type="file" id="importInput" accept="application/json" style="display:none" onchange="importData(event)">
 </div>
 </header>
@@ -117,13 +130,9 @@ h1 { font-size: 22px; color: #2d3748; }
 <div class="groups" id="groups"><div class="empty">Подключение к базе...</div></div>
 
 <div class="overlay" id="bossOverlay"><div class="modal"><h3>Руководитель</h3><div class="field"><label>Имя</label><input id="bossName"></div><div class="field"><label>Должность</label><input id="bossRole"></div><div class="modal-actions"><button class="btn secondary" onclick="closeBossModal()">Отмена</button><button class="btn" onclick="saveBoss()">Сохранить</button></div></div></div>
-
 <div class="overlay" id="empOverlay"><div class="modal"><h3 id="empModalTitle">Сотрудник</h3><div class="field"><label>Имя</label><input id="empName"></div><div class="field"><label>Должность</label><input id="empRole"></div><div class="field"><label>График</label><input id="empSchedule"></div><div class="field"><label>Статус</label><select id="empStatus"><option value="member">Участник</option><option value="lead">Руководитель</option><option value="sublead">Зам</option></select></div><div class="field"><label>Обязанности</label><textarea id="empDuties"></textarea></div><div class="modal-actions"><button class="btn secondary" onclick="closeEmpModal()">Отмена</button><button class="btn" onclick="saveEmp()">Сохранить</button></div></div></div>
-
 <div class="overlay" id="dutyOverlay"><div class="modal"><h3>Обязанность</h3><div class="field"><label>Текст</label><input id="dutyText"></div><div class="modal-actions"><button class="btn secondary" onclick="closeDutyModal()">Отмена</button><button class="btn" onclick="saveDuty()">Добавить</button></div></div></div>
-
 <div class="overlay" id="groupOverlay"><div class="modal"><h3 id="groupModalTitle">Группа</h3><div class="field"><label>Название</label><input id="groupName"></div><div class="field"><label>Цвет</label><input id="groupColor" type="color" value="#4f46e5"></div><div class="modal-actions"><button class="btn secondary" onclick="closeGroupModal()">Отмена</button><button class="btn" id="groupSaveBtn" onclick="saveGroup()">Создать</button></div></div></div>
-
 <div class="overlay" id="goalOverlay"><div class="modal"><h3 id="goalModalTitle">Цель</h3><div class="field"><label>Описание</label><input id="goalText"></div><div class="field"><label>Приоритет</label><select id="goalPrio"><option value="low">Низкий</option><option value="mid" selected>Средний</option><option value="high">Высокий</option></select></div><div class="field"><label>Дедлайн</label><input id="goalDeadline" type="date"></div><div class="field"><label>Прогресс</label><input id="goalProgress" type="number" min="0" max="100" value="0"></div><div class="modal-actions"><button class="btn secondary" onclick="closeGoalModal()">Отмена</button><button class="btn green" onclick="saveGoal()">Сохранить</button></div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -131,6 +140,42 @@ h1 { font-size: 22px; color: #2d3748; }
 var SB_URL = "https://emsndpczwqeqhwozlsxb.supabase.co";
 var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVtc25kcGN6d3FlcWh3b3psc3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwNDA4NTMsImV4cCI6MjA5OTYxNjg1M30.bWbUHFXjGqZfJ5Zp5Zmyr1iAhci08ndF_jUNxSR22EU";
 var db = supabase.createClient(SB_URL, SB_KEY);
+
+var PASS = "Ds7@k2";
+
+function checkPassword(){
+  if(localStorage.getItem('dash_auth') === 'ok'){
+    document.getElementById('authScreen').style.display = 'none';
+    loadData();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+  }
+}
+
+function submitPassword(){
+  var val = document.getElementById('passwordInput').value;
+  if(val === PASS){
+    localStorage.setItem('dash_auth','ok');
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('passwordError').style.display = 'none';
+    loadData();
+  } else {
+    document.getElementById('passwordError').style.display = 'block';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+function logout(){
+  localStorage.removeItem('dash_auth');
+  location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  document.getElementById('passwordInput').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') submitPassword();
+  });
+});
 
 var data = { boss: { name: "", role: "" }, groups: [] };
 var editing = { groupId: null, empId: null };
@@ -187,8 +232,8 @@ function groupHTML(g){
     '<button class="icon-btn" style="color:#fff" onclick="editGroup(\''+g.id+'\')">✏️</button>'+
     '<button class="icon-btn" style="color:#fff" onclick="deleteGroup(\''+g.id+'\')">🗑</button></div></div>'+
     '<div class="team-goals"><div class="tg-title"><span class="tg-left">🎯 Цели команды</span>'+
-      '<span>'+(goals.length>2?'<button class="expand-toggle" onclick="toggleTeamGoals(this)">развернуть ▾</button>':'')+
-      '<button class="btn green small" onclick="openGoalModal(\'team\',\''+g.id+'\')">＋</button></span></div>'+
+    '<span>'+(goals.length>2?'<button class="expand-toggle" onclick="toggleTeamGoals(this)">развернуть ▾</button>':'')+
+    '<button class="btn green small" onclick="openGoalModal(\'team\',\''+g.id+'\')">＋</button></span></div>'+
     '<div class="team-goals-list">'+(goals.length?goals.map(function(gl){return goalHTML(gl,'team',g.id,null);}).join(''):'<div class="goals-empty">Нет целей</div>')+'</div></div>'+
     '<div class="group-body" data-group="'+g.id+'" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,\''+g.id+'\')">'+
     (emps.length?emps.map(function(e,i){return empHTML(g.id,e,i,emps.length);}).join(''):'<div class="empty">Пусто</div>')+
@@ -199,8 +244,8 @@ function empHTML(gid, e, idx, total){
   var badge = e.status==='lead' ? '<span class="badge">👑</span>' : e.status==='sublead' ? '<span class="badge sub">⭐</span>' : '';
   var duties = e.duties || [];
   var goals = e.goals || [];
-  var upBtn   = idx>0        ? '<button class="icon-btn" onclick="moveEmp(\''+gid+'\',\''+e.id+'\',-1)">🔼</button>' : '';
-  var downBtn = idx<total-1  ? '<button class="icon-btn" onclick="moveEmp(\''+gid+'\',\''+e.id+'\',1)">🔽</button>' : '';
+  var upBtn   = idx>0       ? '<button class="icon-btn" onclick="moveEmp(\''+gid+'\',\''+e.id+'\',-1)">🔼</button>' : '';
+  var downBtn = idx<total-1 ? '<button class="icon-btn" onclick="moveEmp(\''+gid+'\',\''+e.id+'\',1)">🔽</button>' : '';
   return '<div class="emp '+(e.status!=='member'?'lead':'')+'" draggable="true" data-emp="'+e.id+'" data-group="'+gid+'">'+
     '<div class="emp-top"><div><div class="emp-name">'+esc(e.name)+' '+badge+'</div><div class="emp-role">'+esc(e.role||'')+'</div></div>'+
     '<div class="emp-actions">'+upBtn+downBtn+
@@ -208,14 +253,13 @@ function empHTML(gid, e, idx, total){
     '<button class="icon-btn" onclick="editEmp(\''+gid+'\',\''+e.id+'\')">✏️</button>'+
     '<button class="icon-btn" onclick="deleteEmp(\''+gid+'\',\''+e.id+'\')">🗑</button></div></div>'+
     '<div class="emp-collapsible">'+
-      '<div class="schedule">📅 '+esc(e.schedule||'')+'</div>'+
-      '<div class="duties-title">📋 Обязанности<button class="btn small" onclick="openDutyModal(\''+gid+'\',\''+e.id+'\')">＋</button></div>'+
-      '<ul class="duties-list">'+(duties.length?duties.map(function(d,i){return '<li class="duty-item"><span class="duty-bullet">•</span><span class="duty-text">'+esc(d)+'</span><span class="duty-del" onclick="removeDuty(\''+gid+'\',\''+e.id+'\','+i+')">×</span></li>';}).join(''):'<li class="duties-empty">Нет</li>')+'</ul>'+
-      '<div class="goals-header">🎯 Цели ('+goals.length+')<button class="btn green small" onclick="openGoalModal(\'emp\',\''+gid+'\',\''+e.id+'\')">＋</button></div>'+
-      '<div class="goals-list">'+(goals.length?goals.map(function(gl){return goalHTML(gl,'emp',gid,e.id);}).join(''):'<div class="goals-empty">Нет</div>')+'</div>'+
+    '<div class="schedule">📅 '+esc(e.schedule||'')+'</div>'+
+    '<div class="duties-title">📋 Обязанности<button class="btn small" onclick="openDutyModal(\''+gid+'\',\''+e.id+'\')">＋</button></div>'+
+    '<ul class="duties-list">'+(duties.length?duties.map(function(d,i){return '<li class="duty-item"><span class="duty-bullet">•</span><span class="duty-text">'+esc(d)+'</span><span class="duty-del" onclick="removeDuty(\''+gid+'\',\''+e.id+'\','+i+')">×</span></li>';}).join(''):'<li class="duties-empty">Нет</li>')+'</ul>'+
+    '<div class="goals-header">🎯 Цели ('+goals.length+')<button class="btn green small" onclick="openGoalModal(\'emp\',\''+gid+'\',\''+e.id+'\')">＋</button></div>'+
+    '<div class="goals-list">'+(goals.length?goals.map(function(gl){return goalHTML(gl,'emp',gid,e.id);}).join(''):'<div class="goals-empty">Нет</div>')+'</div>'+
     '</div>'+
-    '<button class="emp-expand-btn" onclick="toggleEmp(this)">Развернуть ▾</button>'+
-    '</div>';
+    '<button class="emp-expand-btn" onclick="toggleEmp(this)">Развернуть ▾</button></div>';
 }
 
 function goalHTML(gl, type, gid, eid){
@@ -244,9 +288,7 @@ function moveEmp(gid, eid, dir){
   var i = g.employees.findIndex(function(x){return x.id===eid;});
   var j = i + dir;
   if(j<0 || j>=g.employees.length) return;
-  var tmp = g.employees[i];
-  g.employees[i] = g.employees[j];
-  g.employees[j] = tmp;
+  var tmp = g.employees[i]; g.employees[i] = g.employees[j]; g.employees[j] = tmp;
   render(); saveDB();
 }
 
@@ -320,7 +362,7 @@ function exportData(){ var blob=new Blob([JSON.stringify(data,null,2)],{type:'ap
 function triggerImport(){ document.getElementById('importInput').click(); }
 function importData(ev){ var f=ev.target.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(e){ try{ var p=JSON.parse(e.target.result); data=p; render(); saveDB(); alert('OK'); }catch(err){alert('Ошибка');} }; r.readAsText(f); }
 
-loadData();
+checkPassword();
 </script>
 </body>
 </html>
