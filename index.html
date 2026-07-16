@@ -94,27 +94,32 @@ h1 { font-size: 22px; color: #2d3748; }
 
 #toastMsg { position:fixed; bottom:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:600; color:#fff; z-index:2000; box-shadow:0 4px 12px rgba(0,0,0,.25); opacity:0; transition:opacity .3s; pointer-events:none; }
 
-/* Плавающая панель сохранения сверху */
-#saveBar { position:fixed; top:0; left:0; right:0; background:#fff; border-bottom:2px solid #e2e8f0; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+#saveBar { position:fixed; top:0; left:0; right:0; background:#fff; border-bottom:2px solid #e2e8f0; padding:10px 20px; display:flex; align-items:center; justify-content:space-between; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,.06); flex-wrap:wrap; gap:10px; }
 #saveStatus { font-size:13px; color:#64748b; display:flex; align-items:center; gap:8px; }
 #saveStatus.unsaved { color:#dc2626; font-weight:600; }
-#saveStatus .dot { width:8px; height:8px; border-radius:50%; background:#16a34a; }
+#saveStatus .dot { width:8px; height:8px; border-radius:50%; background:#16a34a; flex-shrink:0; }
 #saveStatus.unsaved .dot { background:#dc2626; animation:pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
 #saveNowBtn { background:#16a34a; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
 #saveNowBtn:hover { background:#15803d; }
 #saveNowBtn:disabled { background:#94a3b8; cursor:not-allowed; }
+
+#onlineBar { display:flex; align-items:center; gap:8px; font-size:13px; color:#334155; flex-wrap:wrap; }
+#onlineBar .online-dot { width:8px; height:8px; border-radius:50%; background:#16a34a; flex-shrink:0; box-shadow:0 0 0 2px rgba(22,163,74,.2); }
+.online-user { background:#eef2ff; color:#4338ca; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
 </style>
 </head>
 <body>
 
-<!-- Панель сохранения -->
+<!-- Панель сохранения + онлайн -->
 <div id="saveBar">
-  <div id="saveStatus"><span class="dot"></span><span id="saveStatusText">Все изменения сохранены</span></div>
+  <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+    <div id="saveStatus"><span class="dot"></span><span id="saveStatusText">Все изменения сохранены</span></div>
+    <div id="onlineBar"><span class="online-dot"></span><span>Сейчас на сайте:</span><span id="onlineList" style="display:flex; gap:6px; flex-wrap:wrap;"></span></div>
+  </div>
   <button id="saveNowBtn" onclick="saveDB()">💾 Сохранить изменения</button>
 </div>
 
-<!-- Toast -->
 <div id="toastMsg"></div>
 
 <!-- Экран входа -->
@@ -122,9 +127,10 @@ h1 { font-size: 22px; color: #2d3748; }
   <div style="background:#fff; padding:40px; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.12); text-align:center; width:320px;">
     <div style="font-size:52px; margin-bottom:12px;">🔒</div>
     <h2 style="margin-bottom:6px; color:#1e293b;">Дашборд команды</h2>
-    <p style="font-size:14px; color:#64748b; margin-bottom:22px;">Введите пароль для входа</p>
+    <p style="font-size:14px; color:#64748b; margin-bottom:18px;">Введите ваше имя и пароль</p>
+    <input id="nameInput" type="text" placeholder="Ваше имя" style="width:100%; padding:11px; border:1px solid #cbd5e1; border-radius:8px; font-size:15px; margin-bottom:10px; outline:none; text-align:center;">
     <input id="passwordInput" type="password" placeholder="Пароль" style="width:100%; padding:11px; border:1px solid #cbd5e1; border-radius:8px; font-size:15px; margin-bottom:10px; outline:none; text-align:center; letter-spacing:3px;">
-    <div id="passwordError" style="display:none; color:#dc2626; font-size:13px; margin-bottom:10px;">❌ Неверный пароль</div>
+    <div id="passwordError" style="display:none; color:#dc2626; font-size:13px; margin-bottom:10px;">❌ Проверьте имя и пароль</div>
     <button onclick="submitPassword()" style="width:100%; background:#4f46e5; color:#fff; border:none; padding:12px; border-radius:8px; font-size:15px; cursor:pointer; font-weight:600;">Войти</button>
   </div>
 </div>
@@ -166,6 +172,8 @@ var db = supabase.createClient(SB_URL, SB_KEY);
 var PASS = "Ds7@k2";
 var hasUnsavedChanges = false;
 var lastKnownUpdatedAt = null;
+var myName = "";
+var presenceChannel = null;
 
 /* ============ TOAST ============ */
 function showToast(text, color){
@@ -185,39 +193,88 @@ function markUnsaved(){
   document.getElementById('saveStatusText').textContent = 'Есть несохранённые изменения';
   document.getElementById('saveNowBtn').disabled = false;
 }
-
 function markSaved(){
   hasUnsavedChanges = false;
   var status = document.getElementById('saveStatus');
   status.classList.remove('unsaved');
   document.getElementById('saveStatusText').textContent = 'Все изменения сохранены';
 }
-
 window.addEventListener('beforeunload', function(e){
-  if(hasUnsavedChanges){
-    e.preventDefault();
-    e.returnValue = '';
-  }
+  if(hasUnsavedChanges){ e.preventDefault(); e.returnValue = ''; }
 });
+
+/* ============ PRESENCE (Кто онлайн) ============ */
+function setupPresence(){
+  presenceChannel = db.channel('dashboard-online', {
+    config: { presence: { key: myName + '_' + Date.now() } }
+  });
+
+  presenceChannel
+    .on('presence', { event: 'sync' }, function(){
+      var state = presenceChannel.presenceState();
+      renderOnlineUsers(state);
+    })
+    .subscribe(function(status){
+      if(status === 'SUBSCRIBED'){
+        presenceChannel.track({ name: myName, online_at: new Date().toISOString() });
+      }
+    });
+}
+
+function renderOnlineUsers(state){
+  var names = [];
+  for(var key in state){
+    var presences = state[key];
+    if(presences && presences.length){
+      names.push(presences[0].name);
+    }
+  }
+  // убираем дубли (если у одного человека 2 вкладки)
+  var unique = [];
+  names.forEach(function(n){ if(unique.indexOf(n) === -1) unique.push(n); });
+
+  var el = document.getElementById('onlineList');
+  if(unique.length === 0){
+    el.innerHTML = '<span style="color:#94a3b8">никого нет</span>';
+  } else {
+    el.innerHTML = unique.map(function(n){
+      return '<span class="online-user">' + esc(n) + '</span>';
+    }).join('');
+  }
+}
 
 /* ============ АВТОРИЗАЦИЯ ============ */
 function checkPassword(){
-  if(localStorage.getItem('dash_auth') === 'ok'){
+  var savedAuth = localStorage.getItem('dash_auth');
+  var savedName = localStorage.getItem('dash_username');
+  if(savedAuth === 'ok' && savedName){
+    myName = savedName;
     document.getElementById('authScreen').style.display = 'none';
     loadData();
+    setupPresence();
   } else {
     document.getElementById('authScreen').style.display = 'flex';
   }
 }
 
 function submitPassword(){
+  var name = document.getElementById('nameInput').value.trim();
   var val = document.getElementById('passwordInput').value;
+  if(!name){
+    document.getElementById('passwordError').textContent = '❌ Введите ваше имя';
+    document.getElementById('passwordError').style.display = 'block';
+    return;
+  }
   if(val === PASS){
+    myName = name;
     localStorage.setItem('dash_auth','ok');
+    localStorage.setItem('dash_username', name);
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('passwordError').style.display = 'none';
     loadData();
+    setupPresence();
   } else {
+    document.getElementById('passwordError').textContent = '❌ Неверный пароль';
     document.getElementById('passwordError').style.display = 'block';
     document.getElementById('passwordInput').value = '';
     document.getElementById('passwordInput').focus();
@@ -226,13 +283,18 @@ function submitPassword(){
 
 function logout(){
   if(hasUnsavedChanges && !confirm('Есть несохранённые изменения. Выйти без сохранения?')) return;
+  if(presenceChannel) presenceChannel.untrack();
   localStorage.removeItem('dash_auth');
+  localStorage.removeItem('dash_username');
   location.reload();
 }
 
 document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('passwordInput').addEventListener('keydown', function(e){
     if(e.key === 'Enter') submitPassword();
+  });
+  document.getElementById('nameInput').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') document.getElementById('passwordInput').focus();
   });
 });
 
@@ -271,12 +333,11 @@ async function saveDB(){
   btn.textContent = '⏳ Сохранение...';
 
   try {
-    // проверяем конфликт
     var check = await db.from('dashboard_data').select('updated_at').eq('id',1).limit(1);
     if(check.data && check.data.length){
       var currentUpdatedAt = check.data[0].updated_at;
       if(lastKnownUpdatedAt && currentUpdatedAt && currentUpdatedAt !== lastKnownUpdatedAt){
-        var ok = confirm('⚠️ Кто-то другой уже сохранил изменения после вашей последней загрузки.\n\nЕсли вы продолжите — ВАША версия перезапишет ЕГО изменения.\n\nНажмите ОК, чтобы всё равно сохранить СВОЮ версию.\nНажмите Отмена, чтобы обновить страницу и увидеть чужие изменения (ваши правки будут потеряны, но можно скачать их JSON перед этим).');
+        var ok = confirm('⚠️ Кто-то другой уже сохранил изменения после вашей последней загрузки.\n\nЕсли продолжите — ВАША версия перезапишет ЕГО изменения.\n\nОК = сохранить свою версию.\nОтмена = обновить страницу и увидеть чужие изменения.');
         if(!ok){
           btn.disabled = false;
           btn.textContent = '💾 Сохранить изменения';
@@ -292,7 +353,7 @@ async function saveDB(){
     if(fresh.data && fresh.data.length) lastKnownUpdatedAt = fresh.data[0].updated_at;
 
     markSaved();
-    showToast('✅ Сохранено', '#16a34a');
+    showToast('✅ Сохранено (' + myName + ')', '#16a34a');
   } catch(e){
     console.error('save error', e);
     showToast('❌ ОШИБКА СОХРАНЕНИЯ! Проверьте интернет', '#dc2626');
